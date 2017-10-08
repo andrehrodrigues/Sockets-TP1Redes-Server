@@ -1,25 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <netdb.h>
 #include <unistd.h>
-
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
-#define PORT_NUMBER 10001
 #define MAX_NUM_CONNECTIONS 1
-#define BUFFER_SIZE 256
 
 int main(int argc, char *argv[]) {
 
-
+    FILE *outputFile;
     FILE *requestedFile;
+    int serverPort, bufferSize;
     int serverSocket, clientSocket, bindReturn, clientLength;
-    char buffer[BUFFER_SIZE];
     struct sockaddr_in serverAddress, clienteAddress;
     int n;
+    struct timeval start, end;
 
+    //Server port for connection.
+    serverPort = atoi(argv[1]);
+
+    //Buffer size.
+    bufferSize = atoi(argv[2]);
+
+    char buffer[bufferSize];
+    
     //Criacao do socket para o servidor
     //Params: AF_INET - IPv4 protocols ; SOCK_STREAM - Stream socket ; IPPROTO_TCP - TCP transport protocol
     serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -34,28 +40,17 @@ int main(int argc, char *argv[]) {
 
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");//INADDR_ANY;
-    serverAddress.sin_port = htons(PORT_NUMBER);
+    serverAddress.sin_port = htons(serverPort);
 
-    /* Now bind the host address using bind() call.*/
     bindReturn = bind(serverSocket, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
-
-    printf("Bind");
-    printf(" %d\n", bindReturn);
 
     if (bindReturn < 0) {
         perror("ERROR on binding");
         exit(1);
     }
 
-    /* Now start listening for the clients, here process will
-       * go in sleep mode and will wait for the incoming connection
-    */
-
     listen(serverSocket, MAX_NUM_CONNECTIONS); //Inicialmente setado para receber apenas 1 conexao
     clientLength = sizeof(clienteAddress);
-
-    printf("Client Length");
-    printf(" %d\n", clientLength);
 
     while (1) {
 
@@ -68,16 +63,16 @@ int main(int argc, char *argv[]) {
         }
 
 
+        gettimeofday(&start, NULL);
+
         /* If connection is established then start communicating */
-        bzero(buffer, BUFFER_SIZE);
-        n = read(clientSocket, buffer, BUFFER_SIZE);
+        bzero(buffer, bufferSize);
+        n = read(clientSocket, buffer, bufferSize);
 
         if (n < 0) {
             perror("ERROR reading from socket");
             exit(1);
         }
-
-        printf("File name: %s\n", buffer);
 
         strtok(buffer, "\n");
 
@@ -93,11 +88,10 @@ int main(int argc, char *argv[]) {
 
         } else {
 
-            while ( fgets(buffer, BUFFER_SIZE, requestedFile) != NULL ) {
+            while ( fgets(buffer, bufferSize, requestedFile) != NULL ) {
 
-                printf("Pacote enviado: %s\n", buffer);
                 /* Write a response to the client */
-                n = write(clientSocket, buffer, BUFFER_SIZE);
+                n = write(clientSocket, buffer, bufferSize);
 
                 if (n < 0) {
                     perror("ERROR: Falha no envio da mensagem.");
@@ -105,14 +99,22 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            printf("Fim de envio de arquivo.");
-
             fclose(requestedFile);
 
             close(clientSocket);
-
-            printf("Socket fechado");
         }
+
+        gettimeofday(&end, NULL);
+
+
+        outputFile = fopen("result.txt", "a");
+
+//        printf("TIME: %ld\n", ( (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec) ) );
+
+        fprintf(outputFile, "%d,", bufferSize );
+        fprintf(outputFile, "%ld\n",( (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec) ) );
+
+        fclose(outputFile);
 
     }
 

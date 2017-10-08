@@ -4,4 +4,4 @@ project(Server)
 set(CMAKE_C_STANDARD 99)
 
 set(SOURCE_FILES main.c)
-add_executable(Server ${SOURCE_FILES})
+add_executable(serverFTP ${SOURCE_FILES})
